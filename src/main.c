@@ -325,27 +325,22 @@ main(int argc, char **argv) {
   GtkWidget *window;
   GtkWidget *web_view;
 
-  WebKitSettings *settings;
   WebKitWebContext *context;
+  WebKitCookieManager *cookie_manager;
   WebKitWebsiteDataManager *data_manager;
+  WebKitSettings *settings;
 
   gtk_init(&argc, &argv);
 
-  window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title(GTK_WINDOW(window), PACKAGE);
+  g_autofree gchar *cache = PATH(USER_CACHE, PACKAGE, "cache");
+  g_autofree gchar *data = PATH(USER_CACHE, PACKAGE, "data");
+  g_autofree gchar *cookies = PATH(USER_CACHE, PACKAGE, "cookies.txt");
 
-  {
-    g_autofree gchar *cache = PATH(USER_CACHE, PACKAGE, "cache");
-    g_autofree gchar *data = PATH(USER_CACHE, PACKAGE, "data");
-
-    g_debug("Cache directory in %s", cache);
-    g_debug("Data directory in %s", data);
-    data_manager = webkit_website_data_manager_new(
-        "base-cache-directory", cache,
-        "base-data-directory", data,
-        NULL
-    );
-  }
+  data_manager = webkit_website_data_manager_new(
+    "base-cache-directory", cache,
+    "base-data-directory", data,
+    NULL
+  );
 
   context = webkit_web_context_new_with_website_data_manager(data_manager);
   webkit_web_context_set_web_process_count_limit(context, 4);
@@ -353,6 +348,10 @@ main(int argc, char **argv) {
   webkit_web_context_set_cache_model(context, WEBKIT_CACHE_MODEL_WEB_BROWSER);
   webkit_web_context_set_spell_checking_enabled(context, false);
   webkit_web_context_set_preferred_languages(context, preferred_languages);
+
+  cookie_manager = webkit_web_context_get_cookie_manager(context);
+  webkit_cookie_manager_set_persistent_storage(cookie_manager, cookies, WEBKIT_COOKIE_PERSISTENT_STORAGE_TEXT);
+  webkit_cookie_manager_set_accept_policy(cookie_manager, WEBKIT_COOKIE_POLICY_ACCEPT_NO_THIRD_PARTY);
 
   settings = webkit_settings_new();
   webkit_settings_set_allow_file_access_from_file_urls(settings, false);
@@ -377,6 +376,7 @@ main(int argc, char **argv) {
   web_view = webkit_web_view_new_with_context(context);
   webkit_web_view_set_settings(WEBKIT_WEB_VIEW(web_view), settings);
 
+  window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_container_add(GTK_CONTAINER(window), web_view);
 
   g_signal_connect(G_OBJECT(context), "initialize-web-extensions", G_CALLBACK(on_initialize_web_extensions), NULL);
