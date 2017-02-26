@@ -91,11 +91,8 @@ get_input(void) {
 
   if (line != NULL)
     g_strstrip(line);
-
   return line;
 }
-
-
 
 static void
 do_history(GtkWidget *window, GtkWidget *web_view, gint direction) {
@@ -207,7 +204,6 @@ on_load_changed(WebKitWebView *web_view, WebKitLoadEvent load_event, GtkWidget *
 
 static gboolean
 on_decide_destination(WebKitDownload *download, gchar *suggested_filename, gpointer user_data) {
-  const gchar *home = g_get_home_dir();
   g_autofree gchar *path = NULL;
   g_autofree gchar *name = NULL;
   g_autofree gchar *uri = NULL;
