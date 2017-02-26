@@ -50,7 +50,7 @@ enum ZoomAction {
 #define PATH(location, ...) \
   (g_build_path(G_DIR_SEPARATOR_S, location, ##__VA_ARGS__, NULL))
 
-static gchar *get_input(void);
+static gchar *get_input(const gchar *suggestion);
 static void do_history(GtkWidget *window, GtkWidget *web_view, gint action);
 static void do_navigation(GtkWidget *window, GtkWidget *web_view);
 static void do_search(GtkWidget *window, GtkWidget *web_view, gint action);
@@ -74,7 +74,7 @@ static struct {
 } path;
 
 static gchar *
-get_input(void) {
+get_input(const gchar *suggestion) {
   gchar *input_command[] = {
     INPUT_COMMAND,
     NULL
@@ -88,13 +88,20 @@ get_input(void) {
   g_spawn_async_with_pipes(NULL, input_command, NULL, 0, NULL, NULL, NULL, &stdin, &stdout, NULL, &error);
   g_assert_no_error(error);
 
-  g_close(stdin, &error);
+  GIOChannel *input = g_io_channel_unix_new(stdin);
+  if (suggestion != NULL) {
+    g_io_channel_write_chars(input, suggestion, -1, NULL, &error);
+    g_assert_no_error(error);
+    g_io_channel_write_unichar (input, '\n', &error);
+    g_assert_no_error(error);
+  }
+  g_io_channel_shutdown(input, true, &error);
   g_assert_no_error(error);
 
-  GIOChannel *channel = g_io_channel_unix_new(stdout);
-  g_io_channel_read_line(channel, &line, NULL, NULL, &error);
+  GIOChannel *output = g_io_channel_unix_new(stdout);
+  g_io_channel_read_line(output, &line, NULL, NULL, &error);
   g_assert_no_error(error);
-  g_io_channel_shutdown(channel, false, &error);
+  g_io_channel_shutdown(output, false, &error);
   g_assert_no_error(error);
 
   if (line != NULL)
@@ -119,7 +126,8 @@ do_history(GtkWidget *window, GtkWidget *web_view, gint action) {
 
 static void
 do_navigation(GtkWidget *window, GtkWidget *web_view) {
-  g_autofree gchar *input = get_input();
+  const gchar *suggestion = webkit_web_view_get_uri(WEBKIT_WEB_VIEW(web_view));
+  g_autofree gchar *input = get_input(suggestion);
   g_autofree gchar *url = NULL;
 
   if ((input == NULL) || (strlen(input) == 0)) {
@@ -142,6 +150,7 @@ static void
 do_search(GtkWidget *window, GtkWidget *web_view, gint action) {
   const WebKitFindOptions find_options = WEBKIT_FIND_OPTIONS_CASE_INSENSITIVE | WEBKIT_FIND_OPTIONS_WRAP_AROUND;
   const guint max_match_count = 1024;
+  const gchar *suggestion = NULL;
 
   WebKitFindController *find_controller;
   g_autofree gchar *input = NULL;
@@ -149,7 +158,8 @@ do_search(GtkWidget *window, GtkWidget *web_view, gint action) {
   find_controller = webkit_web_view_get_find_controller(WEBKIT_WEB_VIEW(web_view));
   switch (action) {
   case SEARCH_START:
-    input = get_input();
+    suggestion = webkit_find_controller_get_search_text(find_controller);
+    input = get_input(suggestion);
     if ((input != NULL) && (strlen(input) > 0)) {
       webkit_find_controller_search(find_controller, input, find_options, max_match_count);
     }
