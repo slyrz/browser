@@ -51,7 +51,6 @@ enum ZoomAction {
   (g_build_path(G_DIR_SEPARATOR_S, location, ##__VA_ARGS__, NULL))
 
 static gchar *get_input(void);
-static gboolean on_key_press_event(GtkWidget *window, GdkEventKey *event, GtkWidget *web_view);
 static void do_history(GtkWidget *window, GtkWidget *web_view, gint action);
 static void do_navigation(GtkWidget *window, GtkWidget *web_view);
 static void do_search(GtkWidget *window, GtkWidget *web_view, gint action);
@@ -64,6 +63,8 @@ static void on_download_finished(WebKitDownload *download, gpointer user_data);
 static void on_download_failed(WebKitDownload *download, GError *error, gpointer user_data);
 static void on_download_started(WebKitWebContext *context, WebKitDownload *download, gpointer user_data);
 static void on_initialize_web_extensions(WebKitWebContext *context, gpointer user_data);
+static gboolean on_key_press_event(GtkWidget *window, GdkEventKey *event, GtkWidget *web_view);
+static gboolean on_delete_event(GtkWidget *window, GdkEventKey *event, GtkWidget *web_view);
 
 static gchar *
 get_input(void) {
