@@ -66,6 +66,13 @@ static void on_initialize_web_extensions(WebKitWebContext *context, gpointer use
 static gboolean on_key_press_event(GtkWidget *window, GdkEventKey *event, GtkWidget *web_view);
 static gboolean on_delete_event(GtkWidget *window, GdkEventKey *event, GtkWidget *web_view);
 
+static struct {
+  gchar *extensions;
+  gchar *cache;
+  gchar *data;
+  gchar *cookies;
+} path;
+
 static gchar *
 get_input(void) {
   gchar *input_command[] = {
@@ -205,14 +212,14 @@ on_load_changed(WebKitWebView *web_view, WebKitLoadEvent load_event, GtkWidget *
 
 static gboolean
 on_decide_destination(WebKitDownload *download, gchar *suggested_filename, gpointer user_data) {
-  g_autofree gchar *path = NULL;
+  g_autofree gchar *file = NULL;
   g_autofree gchar *name = NULL;
   g_autofree gchar *uri = NULL;
   guint iter = 0;
 
   do {
     g_free(name);
-    g_free(path);
+    g_free(file);
 
     if (iter == 0) {
       name = g_strdup(suggested_filename);
@@ -220,13 +227,13 @@ on_decide_destination(WebKitDownload *download, gchar *suggested_filename, gpoin
       name = g_strdup_printf("%s.%u", suggested_filename, iter);
     }
 
-    path = PATH(USER_HOME, "Downloads", name);
+    file = PATH(USER_HOME, "Downloads", name);
     iter++;
-  } while (g_file_test(path, G_FILE_TEST_EXISTS));
+  } while (g_file_test(file, G_FILE_TEST_EXISTS));
 
   g_message("Saving file %s to %s", suggested_filename, uri);
 
-  uri = g_strdup_printf("file://%s", path);
+  uri = g_strdup_printf("file://%s", file);
   webkit_download_set_destination(download, uri);
   return false;
 }
@@ -260,13 +267,8 @@ on_download_started(WebKitWebContext *context, WebKitDownload *download, gpointe
 static void
 on_initialize_web_extensions(WebKitWebContext *context, gpointer user_data) {
   static guint32 unique_id = 0;
-  static gchar *extensions = NULL;
 
-  if (extensions == NULL) {
-    extensions = PATH(USER_CONFIG, PACKAGE, "extensions");
-    g_debug("Extensions must be placed in %s", extensions);
-  }
-  webkit_web_context_set_web_extensions_directory(context, extensions);
+  webkit_web_context_set_web_extensions_directory(context, path.extensions);
   webkit_web_context_set_web_extensions_initialization_user_data(context, g_variant_new_uint32(unique_id++));
 }
 
@@ -332,13 +334,26 @@ main(int argc, char **argv) {
 
   gtk_init(&argc, &argv);
 
-  g_autofree gchar *cache = PATH(USER_CACHE, PACKAGE, "cache");
-  g_autofree gchar *data = PATH(USER_CACHE, PACKAGE, "data");
-  g_autofree gchar *cookies = PATH(USER_CACHE, PACKAGE, "cookies.txt");
+  path.extensions = PATH(USER_CONFIG, PACKAGE, "extensions");
+  path.cache = PATH(USER_CACHE, PACKAGE, "cache");
+  path.data = PATH(USER_CACHE, PACKAGE, "data");
+  path.cookies = PATH(USER_CACHE, PACKAGE, "cookies.txt");
+
+  g_debug(
+    "This browser uses the following paths:\n"
+    "  Extensions: %s\n"
+    "  Cache:      %s\n"
+    "  Data:       %s\n"
+    "  Cookies:    %s\n",
+    path.extensions,
+    path.cache,
+    path.data,
+    path.cookies
+  );
 
   data_manager = webkit_website_data_manager_new(
-    "base-cache-directory", cache,
-    "base-data-directory", data,
+    "base-cache-directory", path.cache,
+    "base-data-directory", path.data,
     NULL
   );
 
@@ -349,8 +364,11 @@ main(int argc, char **argv) {
   webkit_web_context_set_spell_checking_enabled(context, false);
   webkit_web_context_set_preferred_languages(context, preferred_languages);
 
+  g_signal_connect(G_OBJECT(context), "initialize-web-extensions", G_CALLBACK(on_initialize_web_extensions), NULL);
+  g_signal_connect(G_OBJECT(context), "download-started", G_CALLBACK(on_download_started), NULL);
+
   cookie_manager = webkit_web_context_get_cookie_manager(context);
-  webkit_cookie_manager_set_persistent_storage(cookie_manager, cookies, WEBKIT_COOKIE_PERSISTENT_STORAGE_TEXT);
+  webkit_cookie_manager_set_persistent_storage(cookie_manager, path.cookies, WEBKIT_COOKIE_PERSISTENT_STORAGE_TEXT);
   webkit_cookie_manager_set_accept_policy(cookie_manager, WEBKIT_COOKIE_POLICY_ACCEPT_NO_THIRD_PARTY);
 
   settings = webkit_settings_new();
@@ -379,8 +397,6 @@ main(int argc, char **argv) {
   window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_container_add(GTK_CONTAINER(window), web_view);
 
-  g_signal_connect(G_OBJECT(context), "initialize-web-extensions", G_CALLBACK(on_initialize_web_extensions), NULL);
-  g_signal_connect(G_OBJECT(context), "download-started", G_CALLBACK(on_download_started), NULL);
   g_signal_connect(G_OBJECT(web_view), "load-changed", G_CALLBACK(on_load_changed), window);
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(on_key_press_event), web_view);
   g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(on_delete_event), NULL);
