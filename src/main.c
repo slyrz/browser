@@ -43,18 +43,18 @@ enum ZoomAction {
   ZOOM_SET,
 };
 
-#define USER_CACHE   (g_get_user_cache_dir())
-#define USER_CONFIG  (g_get_user_config_dir())
-#define USER_HOME    (g_get_home_dir())
+#define USER_CACHE   g_get_user_cache_dir()
+#define USER_CONFIG  g_get_user_config_dir()
+#define USER_HOME    g_get_home_dir()
 
 #define PATH(location, ...) \
   (g_build_path(G_DIR_SEPARATOR_S, location, ##__VA_ARGS__, NULL))
 
 static gchar *get_input(void);
 static gboolean on_key_press_event(GtkWidget *window, GdkEventKey *event, GtkWidget *web_view);
-static void do_history(GtkWidget *window, GtkWidget *web_view, gint direction);
+static void do_history(GtkWidget *window, GtkWidget *web_view, gint action);
 static void do_navigation(GtkWidget *window, GtkWidget *web_view);
-static void do_search(GtkWidget *window, GtkWidget *web_view, gint command);
+static void do_search(GtkWidget *window, GtkWidget *web_view, gint action);
 static void do_exit(GtkWidget *window, GtkWidget *web_view);
 static void do_zoom(GtkWidget *window, GtkWidget *web_view, gint action, gdouble adjust);
 static void on_load_changed(WebKitWebView *web_view, WebKitLoadEvent load_event, GtkWidget *window);
@@ -95,8 +95,8 @@ get_input(void) {
 }
 
 static void
-do_history(GtkWidget *window, GtkWidget *web_view, gint direction) {
-  switch (direction) {
+do_history(GtkWidget *window, GtkWidget *web_view, gint action) {
+  switch (action) {
   case HISTORY_MOVE_BACK:
     webkit_web_view_go_back(WEBKIT_WEB_VIEW(web_view));
     break;
@@ -131,7 +131,7 @@ do_navigation(GtkWidget *window, GtkWidget *web_view) {
 }
 
 static void
-do_search(GtkWidget *window, GtkWidget *web_view, gint command) {
+do_search(GtkWidget *window, GtkWidget *web_view, gint action) {
   const WebKitFindOptions find_options = WEBKIT_FIND_OPTIONS_CASE_INSENSITIVE | WEBKIT_FIND_OPTIONS_WRAP_AROUND;
   const guint max_match_count = 1024;
 
@@ -139,7 +139,7 @@ do_search(GtkWidget *window, GtkWidget *web_view, gint command) {
   g_autofree gchar *input = NULL;
 
   find_controller = webkit_web_view_get_find_controller(WEBKIT_WEB_VIEW(web_view));
-  switch (command) {
+  switch (action) {
   case SEARCH_START:
     input = get_input();
     if ((input != NULL) && (strlen(input) > 0)) {
@@ -263,7 +263,7 @@ on_initialize_web_extensions(WebKitWebContext *context, gpointer user_data) {
 
   if (extensions == NULL) {
     extensions = PATH(USER_CONFIG, PACKAGE, "extensions");
-    g_debug ("Extensions must be placed in %s", extensions);
+    g_debug("Extensions must be placed in %s", extensions);
   }
   webkit_web_context_set_web_extensions_directory(context, extensions);
   webkit_web_context_set_web_extensions_initialization_user_data(context, g_variant_new_uint32(unique_id++));
@@ -315,7 +315,7 @@ on_key_press_event(GtkWidget *window, GdkEventKey *event, GtkWidget *web_view) {
 
 static gboolean
 on_delete_event(GtkWidget *window, GdkEventKey *event, GtkWidget *web_view) {
-  do_exit (window, web_view);
+  do_exit(window, web_view);
   return false;
 }
 
