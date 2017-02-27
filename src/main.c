@@ -72,13 +72,14 @@ static gboolean on_key_press_event(GtkWidget *window, GdkEventKey *event, GtkWid
 static gboolean on_delete_event(GtkWidget *window, GdkEventKey *event, GtkWidget *web_view);
 
 static struct {
+  WebKitWebContext *context;
   struct {
     gchar *extensions;
     gchar *cache;
     gchar *data;
     gchar *cookies;
   } path;
-} global;
+} global = {0};
 
 static gchar *
 get_input(const gchar *suggestion) {
@@ -351,7 +352,6 @@ main(int argc, char **argv) {
   GtkWidget *window;
   GtkWidget *web_view;
 
-  WebKitWebContext *context;
   WebKitCookieManager *cookie_manager;
   WebKitWebsiteDataManager *data_manager;
   WebKitSettings *settings;
@@ -381,17 +381,17 @@ main(int argc, char **argv) {
     NULL
   );
 
-  context = webkit_web_context_new_with_website_data_manager(data_manager);
-  webkit_web_context_set_web_process_count_limit(context, 4);
-  webkit_web_context_set_tls_errors_policy(context, WEBKIT_TLS_ERRORS_POLICY_FAIL);
-  webkit_web_context_set_cache_model(context, WEBKIT_CACHE_MODEL_WEB_BROWSER);
-  webkit_web_context_set_spell_checking_enabled(context, false);
-  webkit_web_context_set_preferred_languages(context, preferred_languages);
+  global.context = webkit_web_context_new_with_website_data_manager(data_manager);
+  webkit_web_context_set_web_process_count_limit(global.context, 4);
+  webkit_web_context_set_tls_errors_policy(global.context, WEBKIT_TLS_ERRORS_POLICY_FAIL);
+  webkit_web_context_set_cache_model(global.context, WEBKIT_CACHE_MODEL_WEB_BROWSER);
+  webkit_web_context_set_spell_checking_enabled(global.context, false);
+  webkit_web_context_set_preferred_languages(global.context, preferred_languages);
 
-  g_signal_connect(G_OBJECT(context), "initialize-web-extensions", G_CALLBACK(on_initialize_web_extensions), NULL);
-  g_signal_connect(G_OBJECT(context), "download-started", G_CALLBACK(on_download_started), NULL);
+  g_signal_connect(G_OBJECT(global.context), "initialize-web-extensions", G_CALLBACK(on_initialize_web_extensions), NULL);
+  g_signal_connect(G_OBJECT(global.context), "download-started", G_CALLBACK(on_download_started), NULL);
 
-  cookie_manager = webkit_web_context_get_cookie_manager(context);
+  cookie_manager = webkit_web_context_get_cookie_manager(global.context);
   webkit_cookie_manager_set_persistent_storage(cookie_manager, global.path.cookies, WEBKIT_COOKIE_PERSISTENT_STORAGE_TEXT);
   webkit_cookie_manager_set_accept_policy(cookie_manager, WEBKIT_COOKIE_POLICY_ACCEPT_NO_THIRD_PARTY);
 
@@ -415,7 +415,7 @@ main(int argc, char **argv) {
   webkit_settings_set_sans_serif_font_family(settings, SANS_SERIF_FONT_FAMILY);
   webkit_settings_set_serif_font_family(settings, SERIF_FONT_FAMILY);
 
-  web_view = webkit_web_view_new_with_context(context);
+  web_view = webkit_web_view_new_with_context(global.context);
   webkit_web_view_set_settings(WEBKIT_WEB_VIEW(web_view), settings);
 
   window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
