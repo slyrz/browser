@@ -64,6 +64,7 @@ static void do_search(GtkWidget *window, GtkWidget *web_view, gint action);
 static void do_exit(GtkWidget *window, GtkWidget *web_view);
 static void do_zoom(GtkWidget *window, GtkWidget *web_view, gint action, gdouble adjust);
 static void on_load_changed(WebKitWebView *web_view, WebKitLoadEvent load_event, GtkWidget *window);
+static void on_ready_to_show(WebKitWebView *web_view, GtkWidget *window);
 static gboolean on_decide_destination(WebKitDownload *download, gchar *suggested_filename, gpointer user_data);
 static void on_received_data(WebKitDownload *download, guint64 data_length, gpointer user_data);
 static void on_download_finished(WebKitDownload *download, gpointer user_data);
@@ -127,6 +128,7 @@ create_window(GtkWidget *web_view) {
   window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_container_add(GTK_CONTAINER(window), web_view);
   g_signal_connect(G_OBJECT(web_view), "load-changed", G_CALLBACK(on_load_changed), window);
+  g_signal_connect(G_OBJECT(web_view), "ready-to-show", G_CALLBACK(on_ready_to_show), window);
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(on_key_press_event), web_view);
   g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(on_delete_event), web_view);
   return window;
@@ -290,6 +292,12 @@ on_load_changed(WebKitWebView *web_view, WebKitLoadEvent load_event, GtkWidget *
   }
 }
 
+static void
+on_ready_to_show(WebKitWebView *web_view, GtkWidget *window) {
+  g_message("WebView is ready to show");
+  gtk_widget_show_all(window);
+}
+
 static gboolean
 on_decide_destination(WebKitDownload *download, gchar *suggested_filename, gpointer user_data) {
   g_autofree gchar *file = NULL;
@@ -413,7 +421,6 @@ on_create(WebKitWebView *parent, WebKitNavigationAction *navigation_action, gpoi
   web_view = create_web_view();
   window = create_window(web_view);
   webkit_web_view_load_uri(WEBKIT_WEB_VIEW(web_view), url);
-  gtk_widget_show_all(window);
   return web_view;
 }
 
