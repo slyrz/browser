@@ -153,7 +153,7 @@ get_input(const gchar *suggestion) {
   g_assert_no_error(error);
 
   GIOChannel *input = g_io_channel_unix_new(stdin);
-  if (suggestion != NULL) {
+  if (suggestion) {
     g_io_channel_write_chars(input, suggestion, -1, NULL, &error);
     g_assert_no_error(error);
     g_io_channel_write_unichar (input, '\n', &error);
@@ -168,8 +168,9 @@ get_input(const gchar *suggestion) {
   g_io_channel_shutdown(output, false, &error);
   g_assert_no_error(error);
 
-  if (line != NULL)
+  if (line) {
     g_strstrip(line);
+  }
   return line;
 }
 
@@ -194,12 +195,12 @@ do_navigation(GtkWidget *window, GtkWidget *web_view) {
   g_autofree gchar *input = get_input(suggestion);
   g_autofree gchar *url = NULL;
 
-  if ((input == NULL) || (strlen(input) == 0)) {
+  if ((!input) || (strlen(input) == 0)) {
     return;
   }
 
   guint i = 0;
-  while ((url == NULL) && ((supported_protocols[i]) != NULL)) {
+  while ((!url) && (supported_protocols[i])) {
     if (g_str_has_prefix(input, supported_protocols[i])) {
       if (g_str_has_prefix(input + strlen(supported_protocols[i]), "://")) {
         url = input;
@@ -207,14 +208,14 @@ do_navigation(GtkWidget *window, GtkWidget *web_view) {
     }
     i++;
   }
-  if (url == NULL) {
+  if (!url) {
     url = g_strdup_printf(DEFAULT_PROTOCOL "://%s", input);
   }
-
   webkit_web_view_load_uri(WEBKIT_WEB_VIEW(web_view), url);
 
-  if (input == url)
+  if (input == url) {
     input = NULL;
+  }
 }
 
 static void
@@ -231,7 +232,7 @@ do_search(GtkWidget *window, GtkWidget *web_view, gint action) {
   case SEARCH_START:
     suggestion = webkit_find_controller_get_search_text(find_controller);
     input = get_input(suggestion);
-    if ((input != NULL) && (strlen(input) > 0)) {
+    if ((input) && (strlen(input) > 0)) {
       webkit_find_controller_search(find_controller, input, find_options, max_match_count);
     }
     break;
@@ -295,7 +296,7 @@ on_load_changed(WebKitWebView *web_view, WebKitLoadEvent load_event, GtkWidget *
     break;
   }
 
-  if (title != NULL) {
+  if (title) {
     gtk_window_set_title(GTK_WINDOW(window), title);
   }
 }
@@ -306,7 +307,7 @@ on_mouse_target_changed(WebKitWebView *web_view, WebKitHitTestResult *hit_test_r
   g_autofree gchar *title = NULL;
 
   if (webkit_hit_test_result_context_is_link(hit_test_result)) {
-    if (saved == NULL) {
+    if (!saved) {
       saved = g_strdup(gtk_window_get_title(GTK_WINDOW(window)));
     }
     title = g_strdup_printf(PACKAGE " | %s", webkit_hit_test_result_get_link_uri(hit_test_result));
