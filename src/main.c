@@ -25,6 +25,11 @@ const gchar *preferred_languages[] = {
   NULL
 };
 
+const gchar *supported_protocols[] = {
+  SUPPORTED_PROTOCOLS,
+  NULL
+};
+
 enum HistoryAction {
   HISTORY_MOVE_BACK,
   HISTORY_MOVE_FORWARD,
@@ -134,10 +139,17 @@ do_navigation(GtkWidget *window, GtkWidget *web_view) {
     return;
   }
 
-  if (g_str_has_prefix(input, "http://") || g_str_has_prefix(input, "https://")) {
-    url = input;
-  } else {
-    url = g_strdup_printf("https://%s", input);
+  guint i = 0;
+  while ((url == NULL) && ((supported_protocols[i]) != NULL)) {
+    if (g_str_has_prefix(input, supported_protocols[i])) {
+      if (g_str_has_prefix(input + strlen(supported_protocols[i]), "://")) {
+        url = input;
+      }
+    }
+    i++;
+  }
+  if (url == NULL) {
+    url = g_strdup_printf(DEFAULT_PROTOCOL "://%s", input);
   }
 
   webkit_web_view_load_uri(WEBKIT_WEB_VIEW(web_view), url);

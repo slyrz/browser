@@ -61,6 +61,8 @@ AC_DEFINE([KEY_ZOOM_RESET], ['0'], [Key binding for action.])
 AC_DEFINE([KEY_EXIT], ['x'], [Key binding for action.])
 
 AC_DEFINE([PREFERRED_LANGUAGES], ["en-US"], [Preferred languages.])
+AC_DEFINE([SUPPORTED_PROTOCOLS], ["https", "http"], [Supported protocols.])
+AC_DEFINE([DEFAULT_PROTOCOL], ["https"], [Default protocol.])
 AC_DEFINE([DEFAULT_CHARSET], ["utf-8"], [Default charset.])
 
 AC_DEFINE([DEFAULT_FONT_SIZE], [16], [Default font size.])
