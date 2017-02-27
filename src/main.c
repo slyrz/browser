@@ -55,6 +55,8 @@ enum ZoomAction {
 #define PATH(location, ...) \
   (g_build_path(G_DIR_SEPARATOR_S, location, ##__VA_ARGS__, NULL))
 
+static GtkWidget* create_web_view(void);
+static GtkWidget* create_window(GtkWidget *web_view);
 static gchar *get_input(const gchar *suggestion);
 static void do_history(GtkWidget *window, GtkWidget *web_view, gint action);
 static void do_navigation(GtkWidget *window, GtkWidget *web_view);
@@ -70,8 +72,10 @@ static void on_download_started(WebKitWebContext *context, WebKitDownload *downl
 static void on_initialize_web_extensions(WebKitWebContext *context, gpointer user_data);
 static gboolean on_key_press_event(GtkWidget *window, GdkEventKey *event, GtkWidget *web_view);
 static gboolean on_delete_event(GtkWidget *window, GdkEventKey *event, GtkWidget *web_view);
+static GtkWidget* on_create(WebKitWebView *web_view, WebKitNavigationAction *navigation_action, gpointer user_data);
 
 static struct {
+  guint windows;
   WebKitWebContext *context;
   struct {
     gchar *extensions;
@@ -80,6 +84,53 @@ static struct {
     gchar *cookies;
   } path;
 } global = {0};
+
+static GtkWidget *
+create_web_view(void) {
+  GtkWidget *web_view;
+  WebKitSettings *settings;
+
+  settings = webkit_settings_new();
+  webkit_settings_set_allow_file_access_from_file_urls(settings, false);
+  webkit_settings_set_allow_universal_access_from_file_urls(settings, false);
+  webkit_settings_set_auto_load_images(settings, true);
+  webkit_settings_set_enable_developer_extras(settings, false);
+  webkit_settings_set_enable_page_cache(settings, true);
+  webkit_settings_set_enable_smooth_scrolling(settings, false);
+  webkit_settings_set_enable_webaudio(settings, false);
+  webkit_settings_set_javascript_can_access_clipboard(settings, false);
+  webkit_settings_set_javascript_can_open_windows_automatically(settings, false);
+
+  webkit_settings_set_default_charset(settings, DEFAULT_CHARSET);
+  webkit_settings_set_default_font_family(settings, DEFAULT_FONT_FAMILY);
+  webkit_settings_set_default_font_size(settings, DEFAULT_FONT_SIZE);
+  webkit_settings_set_default_monospace_font_size(settings, DEFAULT_MONOSPACE_FONT_SIZE);
+  webkit_settings_set_minimum_font_size(settings, MINIMUM_FONT_SIZE);
+  webkit_settings_set_monospace_font_family(settings, MONOSPACE_FONT_FAMILY);
+  webkit_settings_set_sans_serif_font_family(settings, SANS_SERIF_FONT_FAMILY);
+  webkit_settings_set_serif_font_family(settings, SERIF_FONT_FAMILY);
+
+  web_view = webkit_web_view_new_with_context(global.context);
+  webkit_web_view_set_settings(WEBKIT_WEB_VIEW(web_view), settings);
+
+  g_signal_connect(G_OBJECT(web_view), "create", G_CALLBACK(on_create), NULL);
+
+  return web_view;
+}
+
+static GtkWidget *
+create_window(GtkWidget *web_view) {
+  GtkWidget *window;
+
+  global.windows++;
+
+  window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  gtk_container_add(GTK_CONTAINER(window), web_view);
+  g_signal_connect(G_OBJECT(web_view), "load-changed", G_CALLBACK(on_load_changed), window);
+  g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(on_key_press_event), web_view);
+  g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(on_delete_event), web_view);
+  return window;
+}
 
 static gchar *
 get_input(const gchar *suggestion) {
@@ -190,7 +241,11 @@ do_search(GtkWidget *window, GtkWidget *web_view, gint action) {
 
 static void
 do_exit(GtkWidget *window, GtkWidget *web_view) {
-  gtk_main_quit();
+  g_assert(global.windows > 0);
+
+  global.windows--;
+  if (global.windows == 0)
+    gtk_main_quit();
 }
 
 static void
@@ -347,10 +402,24 @@ on_delete_event(GtkWidget *window, GdkEventKey *event, GtkWidget *web_view) {
   return false;
 }
 
+static GtkWidget*
+on_create(WebKitWebView *parent, WebKitNavigationAction *navigation_action, gpointer user_data) {
+  const gchar *url = webkit_uri_request_get_uri(webkit_navigation_action_get_request(navigation_action));
+
+  GtkWidget *window;
+  GtkWidget *web_view;
+
+  g_message("Opening new window for %s", url);
+  web_view = create_web_view();
+  window = create_window(web_view);
+  webkit_web_view_load_uri(WEBKIT_WEB_VIEW(web_view), url);
+  gtk_widget_show_all(window);
+  return web_view;
+}
+
 int
 main(int argc, char **argv) {
   GtkWidget *window;
-  GtkWidget *web_view;
 
   WebKitCookieManager *cookie_manager;
   WebKitWebsiteDataManager *data_manager;
@@ -395,36 +464,7 @@ main(int argc, char **argv) {
   webkit_cookie_manager_set_persistent_storage(cookie_manager, global.path.cookies, WEBKIT_COOKIE_PERSISTENT_STORAGE_TEXT);
   webkit_cookie_manager_set_accept_policy(cookie_manager, WEBKIT_COOKIE_POLICY_ACCEPT_NO_THIRD_PARTY);
 
-  settings = webkit_settings_new();
-  webkit_settings_set_allow_file_access_from_file_urls(settings, false);
-  webkit_settings_set_allow_universal_access_from_file_urls(settings, false);
-  webkit_settings_set_auto_load_images(settings, true);
-  webkit_settings_set_enable_developer_extras(settings, false);
-  webkit_settings_set_enable_page_cache(settings, true);
-  webkit_settings_set_enable_smooth_scrolling(settings, false);
-  webkit_settings_set_enable_webaudio(settings, false);
-  webkit_settings_set_javascript_can_access_clipboard(settings, false);
-  webkit_settings_set_javascript_can_open_windows_automatically(settings, false);
-
-  webkit_settings_set_default_charset(settings, DEFAULT_CHARSET);
-  webkit_settings_set_default_font_family(settings, DEFAULT_FONT_FAMILY);
-  webkit_settings_set_default_font_size(settings, DEFAULT_FONT_SIZE);
-  webkit_settings_set_default_monospace_font_size(settings, DEFAULT_MONOSPACE_FONT_SIZE);
-  webkit_settings_set_minimum_font_size(settings, MINIMUM_FONT_SIZE);
-  webkit_settings_set_monospace_font_family(settings, MONOSPACE_FONT_FAMILY);
-  webkit_settings_set_sans_serif_font_family(settings, SANS_SERIF_FONT_FAMILY);
-  webkit_settings_set_serif_font_family(settings, SERIF_FONT_FAMILY);
-
-  web_view = webkit_web_view_new_with_context(global.context);
-  webkit_web_view_set_settings(WEBKIT_WEB_VIEW(web_view), settings);
-
-  window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_container_add(GTK_CONTAINER(window), web_view);
-
-  g_signal_connect(G_OBJECT(web_view), "load-changed", G_CALLBACK(on_load_changed), window);
-  g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(on_key_press_event), web_view);
-  g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(on_delete_event), NULL);
-
+  window = create_window(create_web_view());
   gtk_widget_show_all(window);
   gtk_main();
   return 0;
