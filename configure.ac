@@ -49,6 +49,7 @@ AC_DEFINE_UNQUOTED([INPUT_COMMAND], ["$(which dmenu)"], [Command to call for use
 # Settings
 #-----------------------------------------------------------------------------
 AC_DEFINE([KEY_NAVIGATE], ['g'], [Key binding for action.])
+AC_DEFINE([KEY_STOP_LOADING], ['c'], [Key binding for action.])
 AC_DEFINE([KEY_SEARCH_START], ['f'], [Key binding for action.])
 AC_DEFINE([KEY_SEARCH_NEXT], ['n'], [Key binding for action.])
 AC_DEFINE([KEY_SEARCH_PREVIOUS], ['b'], [Key binding for action.])

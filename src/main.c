@@ -62,6 +62,7 @@ static void do_history(GtkWidget *window, GtkWidget *web_view, gint action);
 static void do_navigation(GtkWidget *window, GtkWidget *web_view);
 static void do_search(GtkWidget *window, GtkWidget *web_view, gint action);
 static void do_exit(GtkWidget *window, GtkWidget *web_view);
+static void do_stop_loading(GtkWidget *window, GtkWidget *web_view);
 static void do_zoom(GtkWidget *window, GtkWidget *web_view, gint action, gdouble adjust);
 static void on_load_changed(WebKitWebView *web_view, WebKitLoadEvent load_event, GtkWidget *window);
 static void on_ready_to_show(WebKitWebView *web_view, GtkWidget *window);
@@ -251,6 +252,11 @@ do_exit(GtkWidget *window, GtkWidget *web_view) {
 }
 
 static void
+do_stop_loading(GtkWidget *window, GtkWidget *web_view) {
+  webkit_web_view_stop_loading(WEBKIT_WEB_VIEW(web_view));
+}
+
+static void
 do_zoom(GtkWidget *window, GtkWidget *web_view, gint action, gdouble adjust) {
   const gdouble max_zoom = 4.0;
   const gdouble min_zoom = 0.25;
@@ -368,6 +374,9 @@ on_key_press_event(GtkWidget *window, GdkEventKey *event, GtkWidget *web_view) {
     switch (event->keyval) {
     case KEY_NAVIGATE:
       do_navigation(window, web_view);
+      return true;
+    case KEY_STOP_LOADING:
+      do_stop_loading(window, web_view);
       return true;
     case KEY_SEARCH_START:
       do_search(window, web_view, SEARCH_START);
