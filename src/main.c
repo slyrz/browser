@@ -72,11 +72,13 @@ static gboolean on_key_press_event(GtkWidget *window, GdkEventKey *event, GtkWid
 static gboolean on_delete_event(GtkWidget *window, GdkEventKey *event, GtkWidget *web_view);
 
 static struct {
-  gchar *extensions;
-  gchar *cache;
-  gchar *data;
-  gchar *cookies;
-} path;
+  struct {
+    gchar *extensions;
+    gchar *cache;
+    gchar *data;
+    gchar *cookies;
+  } path;
+} global;
 
 static gchar *
 get_input(const gchar *suggestion) {
@@ -290,7 +292,7 @@ static void
 on_initialize_web_extensions(WebKitWebContext *context, gpointer user_data) {
   static guint32 unique_id = 0;
 
-  webkit_web_context_set_web_extensions_directory(context, path.extensions);
+  webkit_web_context_set_web_extensions_directory(context, global.path.extensions);
   webkit_web_context_set_web_extensions_initialization_user_data(context, g_variant_new_uint32(unique_id++));
 }
 
@@ -356,10 +358,10 @@ main(int argc, char **argv) {
 
   gtk_init(&argc, &argv);
 
-  path.extensions = PATH(USER_CONFIG, PACKAGE, "extensions");
-  path.cache = PATH(USER_CACHE, PACKAGE, "cache");
-  path.data = PATH(USER_CACHE, PACKAGE, "data");
-  path.cookies = PATH(USER_CACHE, PACKAGE, "cookies.txt");
+  global.path.extensions = PATH(USER_CONFIG, PACKAGE, "extensions");
+  global.path.cache = PATH(USER_CACHE, PACKAGE, "cache");
+  global.path.data = PATH(USER_CACHE, PACKAGE, "data");
+  global.path.cookies = PATH(USER_CACHE, PACKAGE, "cookies.txt");
 
   g_debug(
     "This browser uses the following paths:\n"
@@ -367,15 +369,15 @@ main(int argc, char **argv) {
     "  Cache:      %s\n"
     "  Data:       %s\n"
     "  Cookies:    %s\n",
-    path.extensions,
-    path.cache,
-    path.data,
-    path.cookies
+    global.path.extensions,
+    global.path.cache,
+    global.path.data,
+    global.path.cookies
   );
 
   data_manager = webkit_website_data_manager_new(
-    "base-cache-directory", path.cache,
-    "base-data-directory", path.data,
+    "base-cache-directory", global.path.cache,
+    "base-data-directory", global.path.data,
     NULL
   );
 
@@ -390,7 +392,7 @@ main(int argc, char **argv) {
   g_signal_connect(G_OBJECT(context), "download-started", G_CALLBACK(on_download_started), NULL);
 
   cookie_manager = webkit_web_context_get_cookie_manager(context);
-  webkit_cookie_manager_set_persistent_storage(cookie_manager, path.cookies, WEBKIT_COOKIE_PERSISTENT_STORAGE_TEXT);
+  webkit_cookie_manager_set_persistent_storage(cookie_manager, global.path.cookies, WEBKIT_COOKIE_PERSISTENT_STORAGE_TEXT);
   webkit_cookie_manager_set_accept_policy(cookie_manager, WEBKIT_COOKIE_POLICY_ACCEPT_NO_THIRD_PARTY);
 
   settings = webkit_settings_new();
