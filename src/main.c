@@ -65,6 +65,7 @@ static void do_exit(GtkWidget *window, GtkWidget *web_view);
 static void do_stop_loading(GtkWidget *window, GtkWidget *web_view);
 static void do_zoom(GtkWidget *window, GtkWidget *web_view, gint action, gdouble adjust);
 static void on_load_changed(WebKitWebView *web_view, WebKitLoadEvent load_event, GtkWidget *window);
+static void on_mouse_target_changed(WebKitWebView *web_view, WebKitHitTestResult *hit_test_result, guint modifiers, GtkWidget *window);
 static void on_ready_to_show(WebKitWebView *web_view, GtkWidget *window);
 static gboolean on_decide_destination(WebKitDownload *download, gchar *suggested_filename, gpointer user_data);
 static void on_received_data(WebKitDownload *download, guint64 data_length, gpointer user_data);
@@ -130,6 +131,7 @@ create_window(GtkWidget *web_view) {
   gtk_container_add(GTK_CONTAINER(window), web_view);
   g_signal_connect(G_OBJECT(web_view), "load-changed", G_CALLBACK(on_load_changed), window);
   g_signal_connect(G_OBJECT(web_view), "ready-to-show", G_CALLBACK(on_ready_to_show), window);
+  g_signal_connect(G_OBJECT(web_view), "mouse-target-changed", G_CALLBACK(on_mouse_target_changed), window);
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(on_key_press_event), web_view);
   g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(on_delete_event), web_view);
   return window;
@@ -294,6 +296,26 @@ on_load_changed(WebKitWebView *web_view, WebKitLoadEvent load_event, GtkWidget *
   }
 
   if (title != NULL) {
+    gtk_window_set_title(GTK_WINDOW(window), title);
+  }
+}
+
+static void
+on_mouse_target_changed(WebKitWebView *web_view, WebKitHitTestResult *hit_test_result, guint modifiers, GtkWidget *window) {
+  static gchar *saved = NULL;
+  g_autofree gchar *title = NULL;
+
+  if (webkit_hit_test_result_context_is_link(hit_test_result)) {
+    if (saved == NULL) {
+      saved = g_strdup(gtk_window_get_title(GTK_WINDOW(window)));
+    }
+    title = g_strdup_printf(PACKAGE " | %s", webkit_hit_test_result_get_link_uri(hit_test_result));
+  } else {
+    title = saved;
+    saved = NULL;
+  }
+
+  if (title) {
     gtk_window_set_title(GTK_WINDOW(window), title);
   }
 }
